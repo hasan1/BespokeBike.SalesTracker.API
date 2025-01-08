@@ -15,6 +15,7 @@ namespace BespokeBike.SalesTracker.API.Repository
         Task<Product> AddProduct(Product product);
         Task<Product?> UpdateProduct(Product product);
         Task<bool> DeleteProduct(int productId);
+        Task<bool> IsProductNameUnique(string productName, int productId);
     }
 
     public class ProductRepository : IProductRepository
@@ -101,6 +102,17 @@ namespace BespokeBike.SalesTracker.API.Repository
                 await connection.OpenAsync();
                 var rowsAffected = await connection.ExecuteAsync("DeleteProduct", new { ProductID = productId }, commandType: CommandType.StoredProcedure);
                 return rowsAffected > 0;
+            }
+        }
+
+        public async Task<bool> IsProductNameUnique(string productName, int productId)
+        {
+            using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
+            {
+                await connection.OpenAsync();
+                var result = await connection.QuerySingleAsync<int>("CheckProductNameUnique",
+                    new { Name = productName , ProductId = productId }, commandType: CommandType.StoredProcedure);
+                return result == 1;
             }
         }
     }

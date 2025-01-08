@@ -1,7 +1,5 @@
 using BespokeBike.SalesTracker.API.Model;
 using BespokeBike.SalesTracker.API.Repository;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace BespokeBike.SalesTracker.API.Service
 {
@@ -12,6 +10,7 @@ namespace BespokeBike.SalesTracker.API.Service
         Task<Product> AddProduct(Product product);
         Task<Product?> UpdateProduct(Product product);
         Task<bool> DeleteProduct(int productId);
+        Task<bool> IsProductNameUnique(string productName, int productId);
     }
 
     public class ProductService : IProductService
@@ -23,29 +22,34 @@ namespace BespokeBike.SalesTracker.API.Service
             _productRepository = productRepository;
         }
 
-        public Task<IEnumerable<Product>> GetAllProducts()
+        public async Task<IEnumerable<Product>> GetAllProducts()
         {
-            return _productRepository.GetAllProducts();
+            return await _productRepository.GetAllProducts();
         }
 
-        public Task<Product?> GetProductById(int productId)
+        public async Task<Product?> GetProductById(int productId)
         {
-            return _productRepository.GetProductById(productId);
+            return await _productRepository.GetProductById(productId);
         }
 
-        public Task<Product> AddProduct(Product product)
+        public async Task<Product> AddProduct(Product product)
         {
-            return _productRepository.AddProduct(product);
+            return await _productRepository.AddProduct(product);
         }
 
-        public Task<Product?> UpdateProduct(Product product)
+        public async Task<Product?> UpdateProduct(Product product)
         {
-            return _productRepository.UpdateProduct(product);
+            return await _productRepository.UpdateProduct(product);
         }
 
-        public Task<bool> DeleteProduct(int productId)
+        public async Task<bool> DeleteProduct(int productId)
         {
-            return _productRepository.DeleteProduct(productId);
+            return await _productRepository.DeleteProduct(productId);
+        }
+
+        public async Task<bool> IsProductNameUnique(string productName, int productId)
+        {
+            return await _productRepository.IsProductNameUnique(productName, productId);
         }
     }
 }

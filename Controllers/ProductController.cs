@@ -90,7 +90,7 @@ namespace BespokeBike.SalesTracker.API.Controllers
                 }
 
                 var product = _mapper.Map<Product>(productUpdateDto);
-                var result =  await _productService.UpdateProduct(product);
+                var result = await _productService.UpdateProduct(product);
                 return this.ToApiResponse(result, "product updated successfully", 200);
 
             }
@@ -120,6 +120,30 @@ namespace BespokeBike.SalesTracker.API.Controllers
                 return this.ToApiResponse<bool>(ex.Message, 500);
             }
         }
+
+        [HttpGet("IsProductNameUnique")]
+        public async Task<ActionResult<ApiResponse<bool>>> IsProductNameUnique([FromQuery] string productName, [FromQuery] int productId)
+        {
+            var correlationId = ApiResponseExtensions.GetCorrelationId(this);
+            try
+            {
+                if (string.IsNullOrEmpty(productName))
+                {
+                    return this.ToApiResponse<bool>("Invalid input request", 400);
+                }
+
+                var result = await _productService.IsProductNameUnique(productName, productId);
+
+                return this.ToApiResponse(result, "Validation complete", 200);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error occurred while validating product with ID {productId} and product name {productName}. Correlation ID: {correlationId}");
+                return this.ToApiResponse<bool>(ex.Message, 500);
+            }
+        }
+
+
     }
 }
 
