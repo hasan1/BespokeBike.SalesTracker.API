@@ -49,8 +49,7 @@ namespace BespokeBike.SalesTracker.API.Controllers
                 if (customer == null)
                 {
                     return this.ToApiResponse<CustomerGetDto>("Customer not found", 404);
-                }
-                throw new Exception("Test exception");
+                }               
                 var customerDto = _mapper.Map<CustomerGetDto>(customer);
                 return this.ToApiResponse(customerDto, "Customer retrieved successfully", 200);
             }
@@ -69,7 +68,7 @@ namespace BespokeBike.SalesTracker.API.Controllers
             {
                 var customer = _mapper.Map<Customer>(customerCreateDto);
                 var result = await _customerService.AddCustomer(customer);
-                return this.ToApiResponse(result, "Customer retrieved successfully", 200);
+                return this.ToApiResponse(result, "Customer created successfully", 200);
             }
             catch (Exception ex)
             {
@@ -91,7 +90,7 @@ namespace BespokeBike.SalesTracker.API.Controllers
 
                 var customer = _mapper.Map<Customer>(customerUpdateDto);
                 var result = await _customerService.UpdateCustomer(customer);
-                return this.ToApiResponse(result, "Customer retrieved successfully", 200);
+                return this.ToApiResponse(result, "Customer updated successfully", 200);
             }
             catch (Exception ex)
             {

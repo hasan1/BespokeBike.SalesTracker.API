@@ -9,8 +9,8 @@ namespace BespokeBike.SalesTracker.API.Service
     {
         Task<IEnumerable<Employee>> GetAllEmployees();
         Task<Employee?> GetEmployeeById(int employeeId);
-        Task<int> AddEmployee(Employee employee);
-        Task<bool> UpdateEmployee(Employee employee);
+        Task<Employee> AddEmployee(Employee employee);
+        Task<Employee?> UpdateEmployee(Employee employee);
         Task<bool> DeleteEmployee(int employeeId);
     }
 
@@ -33,12 +33,12 @@ namespace BespokeBike.SalesTracker.API.Service
             return _employeeRepository.GetEmployeeById(employeeId);
         }
 
-        public Task<int> AddEmployee(Employee employee)
+        public Task<Employee> AddEmployee(Employee employee)
         {
             return _employeeRepository.AddEmployee(employee);
         }
 
-        public Task<bool> UpdateEmployee(Employee employee)
+        public Task<Employee?> UpdateEmployee(Employee employee)
         {
             return _employeeRepository.UpdateEmployee(employee);
         }

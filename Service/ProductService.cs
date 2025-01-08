@@ -9,8 +9,8 @@ namespace BespokeBike.SalesTracker.API.Service
     {
         Task<IEnumerable<Product>> GetAllProducts();
         Task<Product?> GetProductById(int productId);
-        Task<int> AddProduct(Product product);
-        Task<bool> UpdateProduct(Product product);
+        Task<Product> AddProduct(Product product);
+        Task<Product?> UpdateProduct(Product product);
         Task<bool> DeleteProduct(int productId);
     }
 
@@ -33,12 +33,12 @@ namespace BespokeBike.SalesTracker.API.Service
             return _productRepository.GetProductById(productId);
         }
 
-        public Task<int> AddProduct(Product product)
+        public Task<Product> AddProduct(Product product)
         {
             return _productRepository.AddProduct(product);
         }
 
-        public Task<bool> UpdateProduct(Product product)
+        public Task<Product?> UpdateProduct(Product product)
         {
             return _productRepository.UpdateProduct(product);
         }

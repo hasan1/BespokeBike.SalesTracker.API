@@ -21,8 +21,7 @@ namespace BespokeBike.SalesTracker.API.ModelDto
         public string Phone { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime? TerminationDate { get; set; }
-        public int? Manager { get; set; }
-        public bool IsActive { get; set; }
+        public int? Manager { get; set; }      
     }
 
     public class EmployeeUpdateDto

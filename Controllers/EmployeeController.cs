@@ -62,41 +62,41 @@ namespace BespokeBike.SalesTracker.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<EmployeeCreateDto>>> AddEmployee([FromBody] EmployeeCreateDto employeeCreateDto)
+        public async Task<ActionResult<ApiResponse<Employee>>> AddEmployee([FromBody] EmployeeCreateDto employeeCreateDto)
         {
             var correlationId = ApiResponseExtensions.GetCorrelationId(this);
             try
             {
                 var employee = _mapper.Map<Employee>(employeeCreateDto);
-                await _employeeService.AddEmployee(employee);
-                return CreatedAtAction(nameof(GetEmployeeById), new { id = employee.EmployeeId }, this.ToApiResponse(employeeCreateDto, "Employee created successfully", 201).Value);
+                var result =  await _employeeService.AddEmployee(employee);
+                return this.ToApiResponse(result, "Employee created successfully", 200);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error occurred while adding a new employee. Correlation ID: {correlationId}. Input: {employeeCreateDto}");
-                return this.ToApiResponse<EmployeeCreateDto>(ex.Message, 500);
+                return this.ToApiResponse<Employee>(ex.Message, 500);
             }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<EmployeeUpdateDto>>> UpdateEmployee(int id, [FromBody] EmployeeUpdateDto employeeUpdateDto)
+        public async Task<ActionResult<ApiResponse<Employee>>> UpdateEmployee(int id, [FromBody] EmployeeUpdateDto employeeUpdateDto)
         {
             var correlationId = ApiResponseExtensions.GetCorrelationId(this);
             try
             {
                 if (id != employeeUpdateDto.EmployeeId)
                 {
-                    return this.ToApiResponse<EmployeeUpdateDto>("Employee ID mismatch", 400);
+                    return this.ToApiResponse<Employee>("Employee ID mismatch", 400);
                 }
 
                 var employee = _mapper.Map<Employee>(employeeUpdateDto);
-                await _employeeService.UpdateEmployee(employee);
-                return NoContent();
+                var result = await _employeeService.UpdateEmployee(employee);
+                return this.ToApiResponse(result, "Employee updated successfully", 200);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error occurred while updating employee with ID {id}. Correlation ID: {correlationId}. Input: {employeeUpdateDto}");
-                return this.ToApiResponse<EmployeeUpdateDto>(ex.Message, 500);
+                return this.ToApiResponse<Employee>(ex.Message, 500);
             }
         }
 

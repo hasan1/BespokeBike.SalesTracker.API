@@ -15,8 +15,7 @@ namespace BespokeBike.SalesTracker.API.ModelDto
         public int EmployeeId { get; set; }
         public int CustomerId { get; set; }
         public DateTime SalesDate { get; set; }
-        public decimal TotalAmount { get; set; }
-        public bool IsActive { get; set; }
+        public decimal TotalAmount { get; set; }       
     }
 
     public class SaleUpdateDto

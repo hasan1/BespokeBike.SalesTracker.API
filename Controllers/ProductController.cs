@@ -62,41 +62,42 @@ namespace BespokeBike.SalesTracker.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<ApiResponse<ProductCreateDto>>> AddProduct([FromBody] ProductCreateDto productCreateDto)
+        public async Task<ActionResult<ApiResponse<Product>>> AddProduct([FromBody] ProductCreateDto productCreateDto)
         {
             var correlationId = ApiResponseExtensions.GetCorrelationId(this);
             try
             {
                 var product = _mapper.Map<Product>(productCreateDto);
-                await _productService.AddProduct(product);
-                return CreatedAtAction(nameof(GetProductById), new { id = product.ProductId }, this.ToApiResponse(productCreateDto, "Product created successfully", 201).Value);
+                var result = await _productService.AddProduct(product);
+                return this.ToApiResponse(result, "product created successfully", 200);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error occurred while adding a new product. Correlation ID: {correlationId}. Input: {productCreateDto}");
-                return this.ToApiResponse<ProductCreateDto>(ex.Message, 500);
+                return this.ToApiResponse<Product>(ex.Message, 500);
             }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<ProductUpdateDto>>> UpdateProduct(int id, [FromBody] ProductUpdateDto productUpdateDto)
+        public async Task<ActionResult<ApiResponse<Product>>> UpdateProduct(int id, [FromBody] ProductUpdateDto productUpdateDto)
         {
             var correlationId = ApiResponseExtensions.GetCorrelationId(this);
             try
             {
                 if (id != productUpdateDto.ProductId)
                 {
-                    return this.ToApiResponse<ProductUpdateDto>("Product ID mismatch", 400);
+                    return this.ToApiResponse<Product>("Product ID mismatch", 400);
                 }
 
                 var product = _mapper.Map<Product>(productUpdateDto);
-                await _productService.UpdateProduct(product);
-                return NoContent();
+                var result =  await _productService.UpdateProduct(product);
+                return this.ToApiResponse(result, "product updated successfully", 200);
+
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, $"Error occurred while updating product with ID {id}. Correlation ID: {correlationId}. Input: {productUpdateDto}");
-                return this.ToApiResponse<ProductUpdateDto>(ex.Message, 500);
+                return this.ToApiResponse<Product>(ex.Message, 500);
             }
         }
 

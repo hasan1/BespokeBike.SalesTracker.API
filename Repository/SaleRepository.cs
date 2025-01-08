@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace BespokeBike.SalesTracker.API.Repository
@@ -11,8 +12,8 @@ namespace BespokeBike.SalesTracker.API.Repository
     {
         Task<IEnumerable<Sale>> GetAllSales();
         Task<Sale?> GetSaleById(int saleId);
-        Task<int> AddSale(Sale sale);
-        Task<bool> UpdateSale(Sale sale);
+        Task<Sale> AddSale(Sale sale);
+        Task<Sale?> UpdateSale(Sale sale);
         Task<bool> DeleteSale(int saleId);
     }
 
@@ -31,7 +32,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<Sale>("SELECT * FROM [dbo].[Sale]");
+                return await connection.QueryAsync<Sale>("GetAllSales", commandType: CommandType.StoredProcedure);
             }
         }
 
@@ -41,37 +42,51 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryFirstOrDefaultAsync<Sale>("SELECT * FROM [dbo].[Sale] WHERE SaleID = @SaleID", new { SaleID = saleId });
+                return await connection.QueryFirstOrDefaultAsync<Sale>("GetSaleById", new { SaleID = saleId }, commandType: CommandType.StoredProcedure);
             }
         }
 
-        // ADD: Insert a new sale
-        public async Task<int> AddSale(Sale sale)
+        public async Task<Sale> AddSale(Sale sale)
         {
+            sale.IsActive = true;
+            int saleId;
+
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"INSERT INTO [dbo].[Sale] (EmployeeID, CustomerID, SalesDate, TotalAmount, IsActive) 
-                             VALUES (@EmployeeID, @CustomerID, @SalesDate, @TotalAmount, @IsActive);
-                             SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                var parameters = new DynamicParameters();
+                parameters.Add("EmployeeID", sale.EmployeeId);
+                parameters.Add("CustomerID", sale.CustomerId);
+                parameters.Add("SalesDate", sale.SalesDate);
+                parameters.Add("TotalAmount", sale.TotalAmount);
+                parameters.Add("IsActive", sale.IsActive);
+                parameters.Add("SaleID", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-                return await connection.QuerySingleAsync<int>(query, sale);
+                await connection.ExecuteAsync("AddSale", parameters, commandType: CommandType.StoredProcedure);
+                saleId = parameters.Get<int>("SaleID");
             }
+
+            return await GetSaleById(saleId);
         }
 
         // UPDATE: Update an existing sale
-        public async Task<bool> UpdateSale(Sale sale)
+        public async Task<Sale?> UpdateSale(Sale sale)
         {
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"UPDATE [dbo].[Sale] 
-                             SET EmployeeID = @EmployeeID, CustomerID = @CustomerID, SalesDate = @SalesDate, 
-                                 TotalAmount = @TotalAmount, IsActive = @IsActive 
-                             WHERE SaleID = @SaleID";
+                var parameters = new
+                {
+                    sale.SaleId,
+                    sale.EmployeeId,
+                    sale.CustomerId,
+                    sale.SalesDate,
+                    sale.TotalAmount,
+                    sale.IsActive
+                };
 
-                var rowsAffected = await connection.ExecuteAsync(query, sale);
-                return rowsAffected > 0;
+                await connection.ExecuteAsync("UpdateSale", parameters, commandType: CommandType.StoredProcedure);
+                return await GetSaleById(sale.SaleId);
             }
         }
 
@@ -81,8 +96,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"DELETE FROM [dbo].[Sale] WHERE SaleID = @SaleID";
-                var rowsAffected = await connection.ExecuteAsync(query, new { SaleID = saleId });
+                var rowsAffected = await connection.ExecuteAsync("DeleteSale", new { SaleID = saleId }, commandType: CommandType.StoredProcedure);
                 return rowsAffected > 0;
             }
         }

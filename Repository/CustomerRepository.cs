@@ -1,6 +1,7 @@
 ﻿using BespokeBike.SalesTracker.API.Model;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace BespokeBike.SalesTracker.API.Repository
 {
@@ -27,7 +28,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<Customer>("SELECT [CustomerID]      ,[FirstName]      ,[LastName]      ,[Address]      ,[Phone]      ,[StartDate]      ,[Email]      ,[IsActive]  FROM [dbo].[Customer]\r\n");
+                return await connection.QueryAsync<Customer>("GetAllCustomers", commandType: CommandType.StoredProcedure);
             }
         }
 
@@ -37,7 +38,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryFirstOrDefaultAsync<Customer>("SELECT [CustomerID]      ,[FirstName]      ,[LastName]      ,[Address]      ,[Phone]      ,[StartDate]      ,[Email]      ,[IsActive]  FROM [dbo].[Customer]\r\n WHERE CustomerID = @CustomerID", new { CustomerID = customerId });
+                return await connection.QueryFirstOrDefaultAsync<Customer>("GetCustomerById", new { CustomerID = customerId }, commandType: CommandType.StoredProcedure);
             }
         }
 
@@ -45,18 +46,25 @@ namespace BespokeBike.SalesTracker.API.Repository
         public async Task<Customer> AddCustomer(Customer customer)
         {
             customer.IsActive = true;
-            int customerId  = 0;
+            int customerId;
 
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"INSERT INTO [dbo].[Customer] (FirstName, LastName, Address, Phone, StartDate, Email, IsActive) 
-                             VALUES (@FirstName, @LastName, @Address, @Phone, @StartDate, @Email, @IsActive);
-                             SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                var parameters = new DynamicParameters();
+                parameters.Add("FirstName", customer.FirstName);
+                parameters.Add("LastName", customer.LastName);
+                parameters.Add("Address", customer.Address);
+                parameters.Add("Phone", customer.Phone);
+                parameters.Add("StartDate", customer.StartDate);
+                parameters.Add("Email", customer.Email);
+                parameters.Add("IsActive", customer.IsActive);
+                parameters.Add("CustomerID", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-                customerId = await connection.QuerySingleAsync<int>(query, customer);
-
+                await connection.ExecuteAsync("AddCustomer", parameters, commandType: CommandType.StoredProcedure);
+                customerId = parameters.Get<int>("CustomerID");
             }
+
 
             return await GetCustomerById(customerId);
         }
@@ -67,12 +75,19 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"UPDATE [dbo].[Customer] 
-                                 SET FirstName = @FirstName, LastName = @LastName, Address = @Address, 
-                                     Phone = @Phone, StartDate = @StartDate, Email = @Email, IsActive = @IsActive 
-                                 WHERE CustomerID = @CustomerID";
+                var parameters = new
+                {
+                    customer.CustomerId,
+                    customer.FirstName,
+                    customer.LastName,
+                    customer.Address,
+                    customer.Phone,
+                    customer.StartDate,
+                    customer.Email,
+                    customer.IsActive
+                };
 
-                var rowsAffected = await connection.ExecuteAsync(query, customer);
+                await connection.ExecuteAsync("UpdateCustomer", parameters, commandType: CommandType.StoredProcedure);
                 return await GetCustomerById(customer.CustomerId);
             }
         }
@@ -83,8 +98,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"DELETE FROM [dbo].[Customer] WHERE CustomerID = @CustomerID";
-                var rowsAffected = await connection.ExecuteAsync(query, new { CustomerID = customerId });
+                var rowsAffected = await connection.ExecuteAsync("DeleteCustomer", new { CustomerID = customerId }, commandType: CommandType.StoredProcedure);
                 return rowsAffected > 0;
             }
         }

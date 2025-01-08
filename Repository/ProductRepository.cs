@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace BespokeBike.SalesTracker.API.Repository
@@ -11,8 +12,8 @@ namespace BespokeBike.SalesTracker.API.Repository
     {
         Task<IEnumerable<Product>> GetAllProducts();
         Task<Product?> GetProductById(int productId);
-        Task<int> AddProduct(Product product);
-        Task<bool> UpdateProduct(Product product);
+        Task<Product> AddProduct(Product product);
+        Task<Product?> UpdateProduct(Product product);
         Task<bool> DeleteProduct(int productId);
     }
 
@@ -31,7 +32,8 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<Product>("SELECT [ProductID]      ,[Name]      ,[Manufacturer]      ,[Style]      ,[QuantityOnHand]      ,[IsActive]  FROM [dbo].[Product]");
+
+                return await connection.QueryAsync<Product>("GetAllProducts", commandType: CommandType.StoredProcedure);
             }
         }
 
@@ -41,39 +43,55 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryFirstOrDefaultAsync<Product>("SELECT [ProductID]      ,[Name]      ,[Manufacturer]      ,[Style]      ,[QuantityOnHand]      ,[IsActive]  FROM [dbo].[Product] WHERE ProductID = @ProductID", new { ProductID = productId });
+                return await connection.QueryFirstOrDefaultAsync<Product>("GetProductById", new { ProductID = productId }, commandType: CommandType.StoredProcedure);
             }
         }
 
         // ADD: Insert a new product
-        public async Task<int> AddProduct(Product product)
+        public async Task<Product> AddProduct(Product product)
         {
+            product.IsActive = true;
+            int productId;
+
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"INSERT INTO [dbo].[Product] (Name, Manufacturer, Style, QuantityOnHand, IsActive) 
-                             VALUES (@Name, @Manufacturer, @Style, @QuantityOnHand, @IsActive);
-                             SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                var parameters = new DynamicParameters();
+                parameters.Add("Name", product.Name);
+                parameters.Add("Manufacturer", product.Manufacturer);
+                parameters.Add("Style", product.Style);
+                parameters.Add("QuantityOnHand", product.QuantityOnHand);
+                parameters.Add("IsActive", product.IsActive);
+                parameters.Add("ProductId", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-                return await connection.QuerySingleAsync<int>(query, product);
+                await connection.ExecuteAsync("AddProduct", parameters, commandType: CommandType.StoredProcedure);
+                productId = parameters.Get<int>("ProductId");
             }
+
+            return await GetProductById(productId);
         }
 
         // UPDATE: Update an existing product
-        public async Task<bool> UpdateProduct(Product product)
+        public async Task<Product?> UpdateProduct(Product product)
         {
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"UPDATE [dbo].[Product] 
-                             SET Name = @Name, Manufacturer = @Manufacturer, Style = @Style, 
-                                 QuantityOnHand = @QuantityOnHand, IsActive = @IsActive 
-                             WHERE ProductID = @ProductID";
+                var parameters = new
+                {
+                    product.ProductId,
+                    product.Name,
+                    product.Manufacturer,
+                    product.Style,
+                    product.QuantityOnHand,
+                    product.IsActive
+                };
 
-                var rowsAffected = await connection.ExecuteAsync(query, product);
-                return rowsAffected > 0;
+                await connection.ExecuteAsync("UpdateProduct", parameters, commandType: CommandType.StoredProcedure);
+                return await GetProductById(product.ProductId);
             }
         }
+
 
         // DELETE: Delete a product by ID
         public async Task<bool> DeleteProduct(int productId)
@@ -81,8 +99,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"DELETE FROM [dbo].[Product] WHERE ProductID = @ProductID";
-                var rowsAffected = await connection.ExecuteAsync(query, new { ProductID = productId });
+                var rowsAffected = await connection.ExecuteAsync("DeleteProduct", new { ProductID = productId }, commandType: CommandType.StoredProcedure);
                 return rowsAffected > 0;
             }
         }

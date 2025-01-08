@@ -3,6 +3,7 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using System.Collections.Generic;
+using System.Data;
 using System.Threading.Tasks;
 
 namespace BespokeBike.SalesTracker.API.Repository
@@ -11,8 +12,8 @@ namespace BespokeBike.SalesTracker.API.Repository
     {
         Task<IEnumerable<Employee>> GetAllEmployees();
         Task<Employee?> GetEmployeeById(int employeeId);
-        Task<int> AddEmployee(Employee employee);
-        Task<bool> UpdateEmployee(Employee employee);
+        Task<Employee> AddEmployee(Employee employee);
+        Task<Employee?> UpdateEmployee(Employee employee);
         Task<bool> DeleteEmployee(int employeeId);
     }
 
@@ -31,7 +32,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryAsync<Employee>("SELECT [EmployeeID]      ,[FirstName]      ,[LastName]      ,[Address]      ,[Phone]      ,[StartDate]      ,[TerminationDate]      ,[Manager]      ,[IsActive]  FROM [dbo].[Employee]\r\n");
+                return await connection.QueryAsync<Employee>("GetAllEmployees", commandType: CommandType.StoredProcedure);
             }
         }
 
@@ -41,38 +42,59 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                return await connection.QueryFirstOrDefaultAsync<Employee>("SELECT [EmployeeID]      ,[FirstName]      ,[LastName]      ,[Address]      ,[Phone]      ,[StartDate]      ,[TerminationDate]      ,[Manager]      ,[IsActive]  FROM [dbo].[Employee] WHERE EmployeeID = @EmployeeID", new { EmployeeID = employeeId });
+                return await connection.QueryFirstOrDefaultAsync<Employee>("GetEmployeeById", new { EmployeeID = employeeId }, commandType: CommandType.StoredProcedure);
             }
         }
 
         // ADD: Insert a new employee
-        public async Task<int> AddEmployee(Employee employee)
+        public async Task<Employee> AddEmployee(Employee employee)
         {
+            employee.IsActive = true;
+            int employeeId;
+
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"INSERT INTO [dbo].[Employee] (FirstName, LastName, Address, Phone, StartDate, TerminationDate, Manager, IsActive) 
-                             VALUES (@FirstName, @LastName, @Address, @Phone, @StartDate, @TerminationDate, @Manager, @IsActive);
-                             SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                var parameters = new DynamicParameters();
+                parameters.Add("FirstName", employee.FirstName);
+                parameters.Add("LastName", employee.LastName);
+                parameters.Add("Address", employee.Address);
+                parameters.Add("Phone", employee.Phone);
+                parameters.Add("StartDate", employee.StartDate);
+                parameters.Add("TerminationDate", employee.TerminationDate);
+                parameters.Add("Manager", employee.Manager);
+                parameters.Add("IsActive", employee.IsActive);
+                parameters.Add("EmployeeID", dbType: DbType.Int32, direction: ParameterDirection.Output);
 
-                return await connection.QuerySingleAsync<int>(query, employee);
+                await connection.ExecuteAsync("AddEmployee", parameters, commandType: CommandType.StoredProcedure);
+                employeeId = parameters.Get<int>("EmployeeID");
             }
+
+            return await GetEmployeeById(employeeId);
         }
 
         // UPDATE: Update an existing employee
-        public async Task<bool> UpdateEmployee(Employee employee)
+        // UPDATE: Update an existing employee
+        public async Task<Employee?> UpdateEmployee(Employee employee)
         {
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"UPDATE [dbo].[Employee] 
-                             SET FirstName = @FirstName, LastName = @LastName, Address = @Address, 
-                                 Phone = @Phone, StartDate = @StartDate, TerminationDate = @TerminationDate, 
-                                 Manager = @Manager, IsActive = @IsActive 
-                             WHERE EmployeeID = @EmployeeID";
+                var parameters = new
+                {
+                    employee.EmployeeId,
+                    employee.FirstName,
+                    employee.LastName,
+                    employee.Address,
+                    employee.Phone,
+                    employee.StartDate,
+                    employee.TerminationDate,
+                    employee.Manager,
+                    employee.IsActive
+                };
 
-                var rowsAffected = await connection.ExecuteAsync(query, employee);
-                return rowsAffected > 0;
+                await connection.ExecuteAsync("UpdateEmployee", parameters, commandType: CommandType.StoredProcedure);
+                return await GetEmployeeById(employee.EmployeeId);
             }
         }
 
@@ -82,8 +104,7 @@ namespace BespokeBike.SalesTracker.API.Repository
             using (var connection = new SqlConnection(_appSettings.BespokeBikeDBconn))
             {
                 await connection.OpenAsync();
-                string query = @"DELETE FROM [dbo].[Employee] WHERE EmployeeID = @EmployeeID";
-                var rowsAffected = await connection.ExecuteAsync(query, new { EmployeeID = employeeId });
+                var rowsAffected = await connection.ExecuteAsync("DeleteEmployee", new { EmployeeID = employeeId }, commandType: CommandType.StoredProcedure);
                 return rowsAffected > 0;
             }
         }
